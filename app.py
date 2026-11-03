@@ -106,7 +106,23 @@ def make_chart(df, alerts, preview_target):
     fig = go.Figure(go.Candlestick(
         x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
         increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
+        hoverinfo="skip",
     ))
+
+    # invisible grid of points: tapping anywhere on the chart selects the nearest price level
+    lo, hi = float(df["Low"].min()), float(df["High"].max())
+    pad = (hi - lo) * 0.1 or hi * 0.001
+    n = 120
+    levels = [lo - pad + i * (hi - lo + 2 * pad) / (n - 1) for i in range(n)]
+    xs = list(df.index[:: max(1, len(df) // 20)])
+    gx = [x for x in xs for _ in levels]
+    gy = levels * len(xs)
+    fig.add_trace(go.Scatter(
+        x=gx, y=gy, mode="markers",
+        marker=dict(size=14, opacity=0.01, color="white"),
+        hovertemplate="%{y:.5f}<extra></extra>", showlegend=False,
+    ))
+
     for a in alerts:
         color = "#26a69a" if a["condition"] == "above" else "#ef5350"
         fig.add_hline(
@@ -122,7 +138,9 @@ def make_chart(df, alerts, preview_target):
         )
     fig.update_layout(
         template="plotly_dark", height=450, margin=dict(l=0, r=0, t=10, b=0),
-        xaxis_rangeslider_visible=False, showlegend=False, dragmode="pan",
+        xaxis_rangeslider_visible=False, showlegend=False,
+        dragmode="pan", clickmode="event+select",
+        hovermode="closest", hoverdistance=-1,
     )
     fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])  # hide weekends
     return fig
@@ -171,60 +189,85 @@ st.title("💱 Forex Alerts")
 data, sha = load()
 active = [a for a in data["alerts"] if a.get("active", True)]
 
-with st.expander("➕ New alert", expanded=True):
-    pair = st.selectbox("Pair (tap and type to search)", list(PAIRS) + ["Custom..."])
-    if pair == "Custom...":
-        ticker = st.text_input("Yahoo Finance ticker", "EURNOK=X").strip().upper()
-        pair = ticker
-    else:
-        ticker = PAIRS[pair]
+# 1) choose pair
+pair = st.selectbox("Pair (tap and type to search)", list(PAIRS) + ["Custom..."])
+if pair == "Custom...":
+    ticker = st.text_input("Yahoo Finance ticker", "EURNOK=X").strip().upper()
+    pair = ticker
+else:
+    ticker = PAIRS[pair]
 
-    cur = price(ticker)
-    if cur:
-        st.caption(f"Current price: **{cur:.5f}**")
-    else:
-        st.caption("Current price not available for this ticker.")
+cur = price(ticker)
+if cur:
+    st.caption(f"Current price: **{cur:.5f}**")
+else:
+    st.caption("Current price not available for this ticker.")
 
-    cond = st.radio("Notify me when price goes", ["above", "below"], horizontal=True)
-    target = st.number_input("Target price", value=float(cur or 1.0), format="%.5f", step=0.0001)
-    note = st.text_input("Note (optional)")
+# reset the form values when the pair changes
+if st.session_state.get("last_ticker") != ticker:
+    st.session_state["last_ticker"] = ticker
+    st.session_state["target"] = float(cur or 1.0)
+    st.session_state["cond"] = "above"
+    st.session_state["last_click"] = None
 
-    if st.button("Create alert", type="primary", use_container_width=True):
-        if not cur:
-            st.error("Can't find a price for this ticker. Check the spelling.")
-        else:
-            data["alerts"].append({
-                "id": uuid.uuid4().hex[:8],
-                "pair": pair,
-                "ticker": ticker,
-                "condition": cond,
-                "target": target,
-                "note": note,
-                "active": True,
-                "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            })
-            save(data, sha, f"Add alert {pair} {cond} {target}")
-            st.success("Alert created")
-            st.rerun()
-
-# ---------- chart ----------
+# 2) chart (tap a level to fill the alert form below)
 if st.toggle("📈 Show chart", value=True):
-    mode = st.radio("Chart type", ["Candles + my alert levels", "TradingView"], horizontal=True)
+    mode = st.radio("Chart type", ["Candles (tap to set alert)", "TradingView"], horizontal=True)
     tf = st.radio("Timeframe", list(TF_CFG), index=2, horizontal=True)
 
     if mode == "TradingView":
         tf_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240", "1D": "D"}
         tv_chart(tv_symbol(ticker), tf_map[tf])
+        st.caption("Tapping doesn't set alerts on the TradingView chart. Switch to Candles for that.")
     else:
         df = candles(ticker, tf)
         if df is None:
             st.warning("No chart data for this ticker and timeframe. Try another timeframe.")
         else:
             my_alerts = [a for a in active if a["ticker"] == ticker]
-            fig = make_chart(df, my_alerts, target)
-            st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
-            st.caption("Green dashed = alert above, red dashed = alert below, yellow dotted = the new alert you're setting.")
+            fig = make_chart(df, my_alerts, st.session_state["target"])
+            event = st.plotly_chart(
+                fig, use_container_width=True, key=f"chart_{ticker}_{tf}",
+                on_select="rerun", selection_mode="points",
+                config={"displaylogo": False},
+            )
+            pts = ((event or {}).get("selection") or {}).get("points") or []
+            if pts:
+                y = float(pts[-1]["y"])
+                click_id = (ticker, tf, round(y, 8))
+                if st.session_state.get("last_click") != click_id:
+                    st.session_state["last_click"] = click_id
+                    st.session_state["target"] = round(y, 5)
+                    st.session_state["cond"] = "above" if (cur and y > cur) else "below"
+                    st.rerun()
+            st.caption("Tap the chart to pick a price. Green dashed = alert above, "
+                       "red dashed = alert below, yellow dotted = your new alert.")
 
+# 3) create alert
+st.subheader("Create alert")
+cond = st.radio("Notify me when price goes", ["above", "below"], horizontal=True, key="cond")
+target = st.number_input("Target price", format="%.5f", step=0.0001, key="target")
+note = st.text_input("Note (optional)")
+
+if st.button("Create alert", type="primary", use_container_width=True):
+    if not cur:
+        st.error("Can't find a price for this ticker. Check the spelling.")
+    else:
+        data["alerts"].append({
+            "id": uuid.uuid4().hex[:8],
+            "pair": pair,
+            "ticker": ticker,
+            "condition": cond,
+            "target": target,
+            "note": note,
+            "active": True,
+            "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        })
+        save(data, sha, f"Add alert {pair} {cond} {target}")
+        st.success("Alert created")
+        st.rerun()
+
+# ---------- alert lists ----------
 st.subheader("Active alerts")
 if not active:
     st.info("No active alerts.")
