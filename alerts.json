@@ -19,6 +19,16 @@
       "note": "",
       "active": true,
       "created": "2026-11-03T07:27:40+00:00"
+    },
+    {
+      "id": "664b27d5",
+      "pair": "USD/JPY",
+      "ticker": "USDJPY=X",
+      "condition": "above",
+      "target": 157.9,
+      "note": "",
+      "active": true,
+      "created": "2026-11-03T08:22:11+00:00"
     }
   ]
 }
