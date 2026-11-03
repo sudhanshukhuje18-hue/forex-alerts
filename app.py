@@ -3,8 +3,10 @@ import json
 import uuid
 from datetime import datetime, timezone
 
+import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 import yfinance as yf
 
 st.set_page_config(page_title="Forex Alerts", page_icon="💱", layout="centered")
@@ -72,10 +74,102 @@ def price(ticker):
         return None
 
 
+# ---------- candlestick chart with alert levels ----------
+TF_CFG = {
+    "1m": ("5d", "1m"),
+    "5m": ("5d", "5m"),
+    "15m": ("5d", "15m"),
+    "1h": ("1mo", "60m"),
+    "4h": ("3mo", "60m"),   # built from 1h candles
+    "1D": ("6mo", "1d"),
+}
+
+
+@st.cache_data(ttl=60)
+def candles(ticker, tf):
+    period, interval = TF_CFG[tf]
+    try:
+        df = yf.Ticker(ticker).history(period=period, interval=interval)
+    except Exception:
+        return None
+    if df is None or df.empty:
+        return None
+    df = df[["Open", "High", "Low", "Close"]]
+    if tf == "4h":
+        df = df.resample("4h").agg(
+            {"Open": "first", "High": "max", "Low": "min", "Close": "last"}
+        ).dropna()
+    return df.tail(250)
+
+
+def make_chart(df, alerts, preview_target):
+    fig = go.Figure(go.Candlestick(
+        x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
+        increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
+    ))
+    for a in alerts:
+        color = "#26a69a" if a["condition"] == "above" else "#ef5350"
+        fig.add_hline(
+            y=a["target"], line_dash="dash", line_color=color, line_width=1.5,
+            annotation_text=f"{a['condition']} {a['target']:.5f}",
+            annotation_position="top left", annotation_font_color=color,
+        )
+    if preview_target:
+        fig.add_hline(
+            y=preview_target, line_dash="dot", line_color="#f5c518", line_width=1.5,
+            annotation_text=f"new {preview_target:.5f}",
+            annotation_position="bottom left", annotation_font_color="#f5c518",
+        )
+    fig.update_layout(
+        template="plotly_dark", height=450, margin=dict(l=0, r=0, t=10, b=0),
+        xaxis_rangeslider_visible=False, showlegend=False, dragmode="pan",
+    )
+    fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])])  # hide weekends
+    return fig
+
+
+# ---------- TradingView chart ----------
+def tv_symbol(ticker):
+    special = {"GC=F": "OANDA:XAUUSD", "SI=F": "OANDA:XAGUSD", "CL=F": "TVC:USOIL"}
+    if ticker in special:
+        return special[ticker]
+    if ticker.endswith("=X"):
+        core = ticker[:-2]
+        if len(core) == 3:          # Yahoo writes USD pairs like JPY=X
+            core = "USD" + core
+        return "FX:" + core
+    return ticker
+
+
+def tv_chart(symbol, interval="15", height=480):
+    html = f"""
+    <div style="height:{height}px;width:100%">
+      <div id="tv_chart" style="height:{height}px;width:100%"></div>
+      <script src="https://s3.tradingview.com/tv.js"></script>
+      <script>
+        new TradingView.widget({{
+          "autosize": true,
+          "symbol": "{symbol}",
+          "interval": "{interval}",
+          "timezone": "Etc/UTC",
+          "theme": "dark",
+          "style": "1",
+          "locale": "en",
+          "allow_symbol_change": true,
+          "hide_side_toolbar": false,
+          "container_id": "tv_chart"
+        }});
+      </script>
+    </div>
+    """
+    components.html(html, height=height)
+
+
 # ---------- UI ----------
 st.title("💱 Forex Alerts")
 
 data, sha = load()
+active = [a for a in data["alerts"] if a.get("active", True)]
 
 with st.expander("➕ New alert", expanded=True):
     pair = st.selectbox("Pair (tap and type to search)", list(PAIRS) + ["Custom..."])
@@ -113,8 +207,25 @@ with st.expander("➕ New alert", expanded=True):
             st.success("Alert created")
             st.rerun()
 
+# ---------- chart ----------
+if st.toggle("📈 Show chart", value=True):
+    mode = st.radio("Chart type", ["Candles + my alert levels", "TradingView"], horizontal=True)
+    tf = st.radio("Timeframe", list(TF_CFG), index=2, horizontal=True)
+
+    if mode == "TradingView":
+        tf_map = {"1m": "1", "5m": "5", "15m": "15", "1h": "60", "4h": "240", "1D": "D"}
+        tv_chart(tv_symbol(ticker), tf_map[tf])
+    else:
+        df = candles(ticker, tf)
+        if df is None:
+            st.warning("No chart data for this ticker and timeframe. Try another timeframe.")
+        else:
+            my_alerts = [a for a in active if a["ticker"] == ticker]
+            fig = make_chart(df, my_alerts, target)
+            st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+            st.caption("Green dashed = alert above, red dashed = alert below, yellow dotted = the new alert you're setting.")
+
 st.subheader("Active alerts")
-active = [a for a in data["alerts"] if a.get("active", True)]
 if not active:
     st.info("No active alerts.")
 for a in active:
