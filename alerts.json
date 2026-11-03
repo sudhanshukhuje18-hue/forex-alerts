@@ -9,6 +9,16 @@
       "note": "",
       "active": true,
       "created": "2026-11-03T02:59:42+00:00"
+    },
+    {
+      "id": "f94e019f",
+      "pair": "USD/CHF",
+      "ticker": "USDCHF=X",
+      "condition": "below",
+      "target": 0.81781,
+      "note": "",
+      "active": true,
+      "created": "2026-11-03T06:09:14+00:00"
     }
   ]
 }
