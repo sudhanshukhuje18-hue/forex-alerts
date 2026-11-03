@@ -56,16 +56,9 @@ def save(data, sha, msg):
         "branch": BRANCH,
     }
     r = requests.put(API, headers=HEAD, json=body, timeout=20)
-    r.raise_for_status()
-
-
-@st.cache_data(ttl=30)
-def price(ticker):
-    try:
-        h = yf.Ticker(ticker).history(period="1d", interval="1m")
-        return float(h["Close"].iloc[-1])
-    except Exception:
-        return None
+    if not r.ok:
+        st.error(f"GitHub error {r.status_code}: {r.text}")
+        st.stop()
 
 
 # ---------- UI ----------
