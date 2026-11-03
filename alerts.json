@@ -1,16 +1,6 @@
 {
   "alerts": [
     {
-      "id": "cdac1703",
-      "pair": "USD/JPY",
-      "ticker": "USDJPY=X",
-      "condition": "below",
-      "target": 157.892,
-      "note": "",
-      "active": true,
-      "created": "2026-11-03T08:22:44+00:00"
-    },
-    {
       "id": "d2739fdb",
       "pair": "USD/CHF",
       "ticker": "USDCHF=X",
