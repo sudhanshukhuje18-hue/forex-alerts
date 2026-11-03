@@ -7,8 +7,9 @@
       "condition": "above",
       "target": 157.9,
       "note": "",
-      "active": true,
-      "created": "2026-11-03T08:22:11+00:00"
+      "active": false,
+      "created": "2026-11-03T08:22:11+00:00",
+      "triggered_at": "2026-11-03T08:30:25+00:00"
     },
     {
       "id": "cdac1703",
