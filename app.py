@@ -9,12 +9,16 @@ import yfinance as yf
 
 st.set_page_config(page_title="Forex Alerts", page_icon="💱", layout="centered")
 
-PAIRS = {
-    "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X",
-    "USD/INR": "INR=X", "AUD/USD": "AUDUSD=X", "USD/CAD": "CAD=X",
-    "USD/CHF": "CHF=X", "NZD/USD": "NZDUSD=X", "EUR/GBP": "EURGBP=X",
-    "EUR/JPY": "EURJPY=X", "GBP/JPY": "GBPJPY=X", "Gold (GC=F)": "GC=F",
-}
+CCY = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD", "INR", "SGD",
+       "HKD", "CNY", "ZAR", "TRY", "MXN", "NOK", "SEK", "DKK", "PLN", "THB",
+       "AED", "SAR", "KRW", "BRL"]
+
+PAIRS = {f"{b}/{q}": f"{b}{q}=X" for b in CCY for q in CCY if b != q}
+PAIRS.update({
+    "Gold (futures)": "GC=F",
+    "Silver (futures)": "SI=F",
+    "Crude oil (futures)": "CL=F",
+})
 
 REPO = st.secrets["GITHUB_REPO"]          # e.g. "yourname/forex-alerts"
 TOKEN = st.secrets["GITHUB_TOKEN"]
@@ -70,27 +74,40 @@ st.title("💱 Forex Alerts")
 data, sha = load()
 
 with st.expander("➕ New alert", expanded=True):
-    pair = st.selectbox("Pair", list(PAIRS))
-    cur = price(PAIRS[pair])
+    pair = st.selectbox("Pair (tap and type to search)", list(PAIRS) + ["Custom..."])
+    if pair == "Custom...":
+        ticker = st.text_input("Yahoo Finance ticker", "EURNOK=X").strip().upper()
+        pair = ticker
+    else:
+        ticker = PAIRS[pair]
+
+    cur = price(ticker)
     if cur:
         st.caption(f"Current price: **{cur:.5f}**")
+    else:
+        st.caption("Current price not available for this ticker.")
+
     cond = st.radio("Notify me when price goes", ["above", "below"], horizontal=True)
     target = st.number_input("Target price", value=float(cur or 1.0), format="%.5f", step=0.0001)
     note = st.text_input("Note (optional)")
+
     if st.button("Create alert", type="primary", use_container_width=True):
-        data["alerts"].append({
-            "id": uuid.uuid4().hex[:8],
-            "pair": pair,
-            "ticker": PAIRS[pair],
-            "condition": cond,
-            "target": target,
-            "note": note,
-            "active": True,
-            "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        })
-        save(data, sha, f"Add alert {pair} {cond} {target}")
-        st.success("Alert created")
-        st.rerun()
+        if not cur:
+            st.error("Can't find a price for this ticker. Check the spelling.")
+        else:
+            data["alerts"].append({
+                "id": uuid.uuid4().hex[:8],
+                "pair": pair,
+                "ticker": ticker,
+                "condition": cond,
+                "target": target,
+                "note": note,
+                "active": True,
+                "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            })
+            save(data, sha, f"Add alert {pair} {cond} {target}")
+            st.success("Alert created")
+            st.rerun()
 
 st.subheader("Active alerts")
 active = [a for a in data["alerts"] if a.get("active", True)]
@@ -99,10 +116,10 @@ if not active:
 for a in active:
     c1, c2 = st.columns([4, 1])
     now = price(a["ticker"])
-    c1.markdown(
-        f"**{a['pair']}** {a['condition']} **{a['target']:.5f}**  \n"
-        f"now: {now:.5f}" if now else f"**{a['pair']}** {a['condition']} **{a['target']:.5f}**"
-    )
+    line = f"**{a['pair']}** {a['condition']} **{a['target']:.5f}**"
+    if now:
+        line += f"  \nnow: {now:.5f}"
+    c1.markdown(line)
     if a.get("note"):
         c1.caption(a["note"])
     if c2.button("🗑", key="d" + a["id"]):
