@@ -1,1 +1,14 @@
-{"alerts": []}
+{
+  "alerts": [
+    {
+      "id": "bc86dcaa",
+      "pair": "USD/CAD",
+      "ticker": "USDCAD=X",
+      "condition": "above",
+      "target": 1.3990099430084229,
+      "note": "",
+      "active": true,
+      "created": "2026-11-03T02:59:42+00:00"
+    }
+  ]
+}
