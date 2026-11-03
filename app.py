@@ -43,7 +43,9 @@ if PASSWORD:
 # ---------- storage (alerts.json in the GitHub repo) ----------
 def load():
     r = requests.get(API, headers=HEAD, params={"ref": BRANCH}, timeout=20)
-    r.raise_for_status()
+    if not r.ok:
+        st.error(f"GitHub error {r.status_code} while loading: {r.text}")
+        st.stop()
     j = r.json()
     return json.loads(base64.b64decode(j["content"])), j["sha"]
 
@@ -59,6 +61,15 @@ def save(data, sha, msg):
     if not r.ok:
         st.error(f"GitHub error {r.status_code}: {r.text}")
         st.stop()
+
+
+@st.cache_data(ttl=30)
+def price(ticker):
+    try:
+        h = yf.Ticker(ticker).history(period="1d", interval="1m")
+        return float(h["Close"].iloc[-1])
+    except Exception:
+        return None
 
 
 # ---------- UI ----------
