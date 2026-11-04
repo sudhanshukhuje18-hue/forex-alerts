@@ -84,16 +84,6 @@
       "note": "",
       "active": true,
       "created": "2026-11-04T03:47:25+00:00"
-    },
-    {
-      "id": "cda159d7",
-      "pair": "USD/JPY",
-      "ticker": "USDJPY=X",
-      "condition": "below",
-      "target": 157.534,
-      "note": "",
-      "active": true,
-      "created": "2026-11-04T03:47:29+00:00"
     }
   ]
 }
