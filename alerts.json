@@ -9,6 +9,16 @@
       "note": "",
       "active": true,
       "created": "2026-11-04T03:29:18+00:00"
+    },
+    {
+      "id": "ba4ce7fd",
+      "pair": "AUD/USD",
+      "ticker": "AUDUSD=X",
+      "condition": "below",
+      "target": 0.69605,
+      "note": "",
+      "active": true,
+      "created": "2026-11-04T04:20:28+00:00"
     }
   ]
 }
