@@ -20,6 +20,16 @@
       "note": "",
       "active": true,
       "created": "2026-11-04T04:20:28+00:00"
+    },
+    {
+      "id": "3f78bc2e",
+      "pair": "GBP/USD",
+      "ticker": "GBPUSD=X",
+      "condition": "above",
+      "target": 1.34907,
+      "note": "",
+      "active": true,
+      "created": "2026-11-04T08:27:05+00:00"
     }
   ]
 }
