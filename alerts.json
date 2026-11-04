@@ -71,8 +71,9 @@
       "condition": "above",
       "target": 0.6964,
       "note": "",
-      "active": true,
-      "created": "2026-11-04T03:29:35+00:00"
+      "active": false,
+      "created": "2026-11-04T03:29:35+00:00",
+      "triggered_at": "2026-11-04T03:31:13+00:00"
     }
   ]
 }
