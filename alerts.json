@@ -30,6 +30,16 @@
       "note": "",
       "active": true,
       "created": "2026-11-04T08:27:05+00:00"
+    },
+    {
+      "id": "2fe11071",
+      "pair": "USD/CAD",
+      "ticker": "USDCAD=X",
+      "condition": "below",
+      "target": 1.39524,
+      "note": "",
+      "active": true,
+      "created": "2026-11-04T08:27:53+00:00"
     }
   ]
 }
