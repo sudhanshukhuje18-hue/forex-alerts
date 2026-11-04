@@ -7,8 +7,9 @@
       "condition": "above",
       "target": 0.69718,
       "note": "",
-      "active": true,
-      "created": "2026-11-04T03:29:18+00:00"
+      "active": false,
+      "created": "2026-11-04T03:29:18+00:00",
+      "triggered_at": "2026-11-04T04:51:29+00:00"
     },
     {
       "id": "ba4ce7fd",
