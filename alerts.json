@@ -28,8 +28,9 @@
       "condition": "above",
       "target": 1.34907,
       "note": "",
-      "active": true,
-      "created": "2026-11-04T08:27:05+00:00"
+      "active": false,
+      "created": "2026-11-04T08:27:05+00:00",
+      "triggered_at": "2026-11-04T08:48:38+00:00"
     },
     {
       "id": "2fe11071",
