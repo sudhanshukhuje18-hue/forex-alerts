@@ -18,8 +18,9 @@
       "condition": "below",
       "target": 0.69605,
       "note": "",
-      "active": true,
-      "created": "2026-11-04T04:20:28+00:00"
+      "active": false,
+      "created": "2026-11-04T04:20:28+00:00",
+      "triggered_at": "2026-11-05T15:51:33+00:00"
     },
     {
       "id": "3f78bc2e",
